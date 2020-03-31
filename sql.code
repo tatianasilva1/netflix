@@ -1,0 +1,76 @@
+#Create netflix table
+
+CREATE TABLE tsilva.netflix(
+    show_id NUMBER(20),
+    "type" VARCHAR2(200) NOT NULL,
+    title VARCHAR2(250) NOT NULL,
+    director VARCHAR2(250) NOT NULL,	
+    cast VARCHAR2(200) NOT NULL,	
+    country VARCHAR2(200) NOT NULL,	
+    date_added DATE NOT NULL,
+    release_year DATE NOT NULL,	
+    rating VARCHAR2(200) NOT NULL,
+    "duration" VARCHAR2(200) NOT NULL,	
+    listed_in VARCHAR2(200) NOT NULL,	
+    description VARCHAR2(32767) NOT NULL,
+    PRIMARY KEY(show_id)
+);
+
+#Check if data was imported correctly
+
+SELECT * FROM netflix_table FETCH FIRST 10 ROWS ONLY;
+
+#Add a column for movielength
+
+ALTER TABLE netflix_table
+ADD movielength VARCHAR2(200);
+
+#Add values for movielength
+
+UPDATE netflix_table
+set movielength = SUBSTR(duration, 1, 3) 
+WHERE type = 'Movie';
+  
+#Create virtual table with only movies  
+  
+CREATE VIEW "MoviesOnly" as
+  SELECT title as "title of movie", director, cast, release_year, listed_in, description,
+  CASE 
+    WHEN to_number(movielength) >= 0 AND to_number(movielength) < 100 THEN 'Short Film'
+      WHEN to_number(movielength) >= 100 AND to_number(movielength) < 120 THEN 'Regular Film'
+        WHEN to_number(movielength) >= 120 THEN 'Long Film'
+          ELSE NULL
+          END AS how_long_is_the_movie
+        FROM netflix_table
+        WHERE type = 'Movie';
+        
+#Check if table was created correctly        
+        
+SELECT * FROM "MoviesOnly" FETCH FIRST 10 ROWS ONLY;
+
+#Create procedure to create a movie report
+
+CREATE OR REPLACE PROCEDURE movie_report (
+    p_year        "MoviesOnly".release_year%TYPE
+)
+IS
+    mov_refcur      SYS_REFCURSOR;
+    v_title         "MoviesOnly"."Title of Movie"%TYPE;
+    v_type          "MoviesOnly".listed_in%TYPE;
+    v_length        "MoviesOnly".how_long_is_the_movie%TYPE;
+BEGIN
+    OPEN mov_refcur FOR SELECT "Title of Movie", listed_in, how_long_is_the_movie FROM "MoviesOnly" WHERE release_year = p_year;
+    DBMS_OUTPUT.PUT_LINE('TITLE    TYPE    LENGTH');
+    DBMS_OUTPUT.PUT_LINE('-----    -------    -------');
+    LOOP
+        FETCH mov_refcur INTO v_title, v_type, v_length;
+        EXIT WHEN mov_refcur%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(v_title || ':' || v_type || '&' || v_length);
+    END LOOP;
+    CLOSE mov_refcur;
+END;
+
+EXECUTE movie_report(2018);
+  
+
+
