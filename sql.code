@@ -72,5 +72,5 @@ END;
 
 EXECUTE movie_report(2018);
   
-
+COMMIT;
 
